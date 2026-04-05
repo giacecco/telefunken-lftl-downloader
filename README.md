@@ -1,5 +1,13 @@
 # Telefunken Elektroakustik — Live From The Lab Downloader
 
+## Why this exists
+
+Telefunken Elektroakustik generously publishes free multitrack recordings from their Live From The Lab sessions. These are a remarkable resource for anyone learning to mix or studying recording techniques. But websites are ephemeral — they get redesigned, restructured, or taken offline without warning. These scripts exist to create a local backup of that library for preservation and personal use.
+
+The irony is that the multitrack files already live on public, unauthenticated S3 buckets — the data is openly accessible. Yet discovering which files exist requires scraping WordPress pages, parsing inconsistent naming conventions, and piecing together artist and track names from noisy HTML. In an era where AI makes this kind of automation trivial, these obstacles achieve nothing except wasted effort. A simple JSON feed or download index would serve everyone better — listeners, archivists, and the publishers themselves.
+
+---
+
 Scripts for downloading the free multitracks library from [Telefunken Elektroakustik's Live From The Lab](https://www.telefunken-elektroakustik.com/livefromthelab/) into a local collection.
 
 ## Requirements

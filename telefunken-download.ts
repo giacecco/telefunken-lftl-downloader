@@ -171,6 +171,21 @@ function folderName(artist: string, track: string): string {
   return `${sanitizeName(artist)} - ${sanitizeName(track)}`;
 }
 
+// Normalized form for deduplication: lowercase, strip noise, remove punctuation,
+// sort artist/track halves so swapped names still match.
+function normalizeForComparison(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\(.*?\)/g, "")
+    .replace(/live\s*from\s*the\s*lab/g, "")
+    .replace(/telefunken/g, "")
+    .split(/\s+-\s+/)
+    .map(part => part.replace(/[^a-z0-9]/g, ""))
+    .filter(Boolean)
+    .sort()
+    .join("|");
+}
+
 async function convertToFlac(dir: string): Promise<void> {
   const glob = new Bun.Glob("**/*");
   const files = [...glob.scanSync({ cwd: dir, absolute: true })];
@@ -281,8 +296,26 @@ async function processTrack(track: Track): Promise<void> {
 
 const tracks = await scrapeTrackList();
 
-// Process sequentially to avoid hammering the server
+// Build normalized set of existing folders to catch near-duplicate names
+const existingEntries = (await $`ls -1 "${BASE_DIR}"`.quiet().nothrow().text())
+  .trim().split("\n").filter(Boolean);
+const existingNormalized = new Set(existingEntries.map(normalizeForComparison));
+
+// Deduplicate tracks by normalized folder name
+const seenNormalized = new Set<string>();
+const uniqueTracks: Track[] = [];
 for (const track of tracks) {
+  const norm = normalizeForComparison(folderName(track.artist, track.track));
+  if (existingNormalized.has(norm) || seenNormalized.has(norm)) continue;
+  seenNormalized.add(norm);
+  uniqueTracks.push(track);
+}
+
+const skipped = tracks.length - uniqueTracks.length;
+if (skipped > 0) console.log(`[dedup] skipped ${skipped} tracks already present (by normalized name)`);
+
+// Process sequentially to avoid hammering the server
+for (const track of uniqueTracks) {
   await processTrack(track);
 }
 

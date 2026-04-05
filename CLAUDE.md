@@ -4,7 +4,7 @@
 https://www.telefunken-elektroakustik.com/livefromthelab/
 
 ## Destination
-`/Volumes/home/music/multitracks/Telefunken Elektroakustik`
+Passed as a required command-line argument. The directory must exist before running.
 
 ## Scripts
 

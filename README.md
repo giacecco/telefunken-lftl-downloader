@@ -37,7 +37,7 @@ The destination directory must exist. Track folders will be created within it.
 ## Output structure
 
 ```
-/Volumes/home/music/multitracks/Telefunken Elektroakustik/
+<destination>/
   Artist Name - Track Title/
     stem1.flac
     stem2.flac

@@ -17,18 +17,6 @@ Download all new tracks (stems + rough masters):
 bun telefunken-download.ts
 ```
 
-Fix folder structure after manual edits:
-
-```bash
-bun telefunken-cleanup.ts
-```
-
-Download missing rough masters only:
-
-```bash
-bun telefunken-rough-masters.ts
-```
-
 ## What it does
 
 - Scrapes all seasons of the Live From The Lab series plus standalone multitrack posts

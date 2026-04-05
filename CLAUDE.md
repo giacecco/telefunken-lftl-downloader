@@ -18,14 +18,11 @@ Main script. For each track found on the Telefunken website:
 
 Scraping strategy: iterates season pages (`/livefromthelab_season/N/`), the main listing page, and the `multitrack` custom post type via the WordPress REST API (`/wp-json/wp/v2/multitrack`). Caches the track list for 24h at `/tmp/telefunken-tracks-cache.json`.
 
-### `telefunken-cleanup.ts`
-Removes macOS junk files (`.DS_Store`, `._*`) from all folders and flattens single top-level subdirectories inside each track folder.
+## Legacy Scripts
 
-### `telefunken-rough-masters.ts`
-Standalone script to download missing rough masters for folders that don't yet have a `rough master.*` file. Uses the same `yt-dlp` channel-search + fallback strategy as the main script. Also deletes any stray `.m4a` files that aren't named `rough master.*`.
-
-### `move_rough_masters.js`
-One-time migration script used to move manually pre-downloaded YouTube m4a files from a `YouTube/` staging folder into the correct track folders, then tag each destination folder green.
+- `legacy/telefunken-cleanup.ts` — removes Mac junk, flattens subfolders (optional maintenance)
+- `legacy/telefunken-rough-masters.ts` — retries missing rough masters (optional recovery)
+- `legacy/move_rough_masters.js` — one-time migration to move pre-downloaded YouTube files
 
 ## Prerequisites
 
@@ -37,8 +34,6 @@ brew install sox yt-dlp tag
 
 ```bash
 bun telefunken-download.ts        # download new tracks (stems + rough masters)
-bun telefunken-cleanup.ts         # remove Mac junk, flatten subfolders
-bun telefunken-rough-masters.ts   # fill missing rough masters only
 ```
 
 ## Key Technical Notes

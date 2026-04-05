@@ -3,7 +3,16 @@ import { existsSync, mkdirSync } from "fs";
 import { join, extname, basename } from "path";
 import { $ } from "bun";
 
-const BASE_DIR = "/Volumes/home/music/multitracks/Telefunken Elektroakustik";
+const destDir = process.argv[2];
+if (!destDir) {
+  console.error("Usage: bun telefunken-download.ts <destination-directory>");
+  process.exit(1);
+}
+if (!existsSync(destDir)) {
+  console.error(`Error: destination directory does not exist: ${destDir}`);
+  process.exit(1);
+}
+const BASE_DIR = destDir;
 
 // Audio file extensions to convert to FLAC
 const AUDIO_EXTENSIONS = new Set([".wav", ".aiff", ".aif", ".mp3", ".ogg", ".flac"]);

@@ -33,8 +33,10 @@ brew install sox yt-dlp tag
 ## Running
 
 ```bash
-bun telefunken-download.ts        # download new tracks (stems + rough masters)
+bun telefunken-download.ts /path/to/destination
 ```
+
+The destination directory must exist and be writable. The script will create `Artist - Track` subdirectories within it.
 
 ## Key Technical Notes
 

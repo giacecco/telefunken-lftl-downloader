@@ -22,8 +22,10 @@ Scripts for downloading the free multitracks library from [Telefunken Elektroaku
 Download all new tracks (stems + rough masters):
 
 ```bash
-bun telefunken-download.ts
+bun telefunken-download.ts /path/to/destination
 ```
+
+The destination directory must exist. Track folders will be created within it.
 
 ## What it does
 

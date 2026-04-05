@@ -15,7 +15,6 @@ Scripts for downloading the free multitracks library from [Telefunken Elektroaku
 - [Bun](https://bun.sh)
 - `sox`: `brew install sox`
 - `yt-dlp`: `brew install yt-dlp`
-- `tag`: `brew install tag`
 
 ## Usage
 
@@ -32,7 +31,6 @@ The destination directory must exist. Track folders will be created within it.
 - Scrapes all seasons of the Live From The Lab series plus standalone multitrack posts
 - Downloads stems zips from AWS S3 (no auth required) and converts audio to FLAC
 - Downloads the rough master audio from the [@LiveFromTheLab YouTube channel](https://www.youtube.com/@LiveFromTheLab) via `yt-dlp`
-- Tags completed folders green using macOS file tags
 
 ## Output structure
 

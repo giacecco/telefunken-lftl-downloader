@@ -275,7 +275,7 @@ async function processTrack(track: Track): Promise<void> {
 
   await downloadRoughMaster(track.artist, track.track, destDir);
 
-  await $`tag --add Green "${destDir}"`.quiet().nothrow();
+
   console.log(`  [done] ${folder}`);
 }
 

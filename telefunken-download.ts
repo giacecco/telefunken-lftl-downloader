@@ -186,6 +186,31 @@ function normalizeForComparison(name: string): string {
     .join("|");
 }
 
+// Levenshtein distance for fuzzy matching (typos, spelling variations)
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) dp[i][j] = dp[i - 1][j - 1];
+      else dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// Find existing folder matching by exact norm or fuzzy match (within 2 chars edit distance)
+function findMatchingFolder(targetNorm: string, existingNormalized: Map<string, string>): string | null {
+  if (existingNormalized.has(targetNorm)) return targetNorm;
+
+  for (const [existingNorm] of existingNormalized) {
+    if (levenshteinDistance(targetNorm, existingNorm) <= 2) return existingNorm;
+  }
+  return null;
+}
+
 async function convertToFlac(dir: string): Promise<void> {
   const glob = new Bun.Glob("**/*");
   const files = [...glob.scanSync({ cwd: dir, absolute: true })];
@@ -296,23 +321,26 @@ async function processTrack(track: Track): Promise<void> {
 
 const tracks = await scrapeTrackList();
 
-// Build normalized set of existing folders to catch near-duplicate names
+// Build normalized map of existing folders to catch near-duplicate names (fuzzy match)
 const existingEntries = (await $`ls -1 "${BASE_DIR}"`.quiet().nothrow().text())
   .trim().split("\n").filter(Boolean);
-const existingNormalized = new Set(existingEntries.map(normalizeForComparison));
+const existingNormalized = new Map(
+  existingEntries.map(entry => [normalizeForComparison(entry), entry])
+);
 
-// Deduplicate tracks by normalized folder name
+// Deduplicate tracks by normalized folder name (exact and fuzzy)
 const seenNormalized = new Set<string>();
 const uniqueTracks: Track[] = [];
 for (const track of tracks) {
   const norm = normalizeForComparison(folderName(track.artist, track.track));
-  if (existingNormalized.has(norm) || seenNormalized.has(norm)) continue;
+  const match = findMatchingFolder(norm, existingNormalized);
+  if (match || seenNormalized.has(norm)) continue;
   seenNormalized.add(norm);
   uniqueTracks.push(track);
 }
 
 const skipped = tracks.length - uniqueTracks.length;
-if (skipped > 0) console.log(`[dedup] skipped ${skipped} tracks already present (by normalized name)`);
+if (skipped > 0) console.log(`[dedup] skipped ${skipped} tracks already present (by normalized or fuzzy name)`);
 
 // Process sequentially to avoid hammering the server
 for (const track of uniqueTracks) {

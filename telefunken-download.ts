@@ -104,15 +104,16 @@ async function fetchPageUrls(url: string, seenUrls: Set<string>, tracks: Track[]
   // Extract page title — only useful for single-track pages, not listing pages
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   const rawTitle = titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : "";
-  // Collect new URLs first to determine if this is a single-track page
+  // Count ALL S3 URLs on the page (not just unseen) to detect listing pages
+  const allMatches = [...html.matchAll(S3_URL_REGEX)];
+  const totalUrlsOnPage = new Set(allMatches.map(m => decodeHtmlEntities(m[0]).split("?")[0])).size;
   const newUrls: string[] = [];
-  for (const match of html.matchAll(S3_URL_REGEX)) {
-    const decoded = decodeHtmlEntities(match[0]).split("?")[0];
+  for (const decoded of new Set(allMatches.map(m => decodeHtmlEntities(m[0]).split("?")[0]))) {
     if (seenUrls.has(decoded)) continue;
     newUrls.push(decoded);
   }
-  // Only use the page title for single-track pages
-  const pageTitle = newUrls.length === 1 ? rawTitle : "";
+  // Only use the page title for single-track pages (one URL total, not just one new)
+  const pageTitle = totalUrlsOnPage === 1 ? rawTitle : "";
   let found = 0;
   for (const decoded of newUrls) {
     seenUrls.add(decoded);

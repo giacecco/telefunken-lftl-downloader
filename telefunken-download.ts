@@ -143,8 +143,9 @@ async function scrapeTrackList(): Promise<Track[]> {
   if (existsSync(CACHE_FILE)) {
     const cache = JSON.parse(await Bun.file(CACHE_FILE).text());
     if (Date.now() - cache.ts < CACHE_TTL_MS) {
-      console.log(`[scrape] using cached track list (${cache.tracks.length} tracks, expires in ${Math.round((CACHE_TTL_MS - (Date.now() - cache.ts)) / 3600000)}h)`);
-      return cache.tracks;
+      const filtered = cache.tracks.filter((t: Track) => !IGNORED_URLS.has(t.sourceUrl));
+      console.log(`[scrape] using cached track list (${filtered.length} tracks, expires in ${Math.round((CACHE_TTL_MS - (Date.now() - cache.ts)) / 3600000)}h)`);
+      return filtered;
     }
   }
 

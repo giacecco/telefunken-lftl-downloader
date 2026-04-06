@@ -272,7 +272,13 @@ async function processTrack(track: Track): Promise<void> {
   const destDir = join(BASE_DIR, folder);
 
   if (existsSync(destDir)) {
-    console.log(`[exists] ${folder}`);
+    const flacGlob = new Bun.Glob("*.flac");
+    const hasStems = [...flacGlob.scanSync({ cwd: destDir })].length > 0;
+    if (!hasStems) {
+      console.warn(`[warn] ${folder} exists but has no stems — download may have failed previously`);
+      console.warn(`  Found at: ${track.sourceUrl}`);
+    }
+    await downloadRoughMaster(track.artist, track.track, destDir);
     return;
   }
 
@@ -281,11 +287,21 @@ async function processTrack(track: Track): Promise<void> {
 
   const tmpZip = join(destDir, "_download.zip");
 
-  const curlResult = await $`curl -L -s -o "${tmpZip}" "${track.url}"`.nothrow();
+  const curlResult = await $`curl -f -L -s -o "${tmpZip}" "${track.url}"`.nothrow();
   if (curlResult.exitCode !== 0) {
     console.error(`  [error] download failed for ${folder}`);
     console.error(`    Found at: ${track.sourceUrl}`);
-    await $`rm -rf "${destDir}"`.quiet();
+    await $`rm "${tmpZip}"`.quiet();
+    // Keep the folder so the script doesn't retry a broken URL on next run
+    return;
+  }
+
+  // Verify the download is actually a zip file (not an HTML error page)
+  const magic = await $`head -c 2 "${tmpZip}"`.quiet().nothrow().text();
+  if (!magic.startsWith("PK")) {
+    console.error(`  [error] download is not a valid zip for ${folder}`);
+    console.error(`    Found at: ${track.sourceUrl}`);
+    await $`rm "${tmpZip}"`.quiet();
     return;
   }
 
@@ -309,7 +325,7 @@ async function processTrack(track: Track): Promise<void> {
   if (unzipResult.exitCode !== 0) {
     console.error(`  [error] unzip failed for ${folder} (bad zip or dead URL)`);
     console.error(`    Found at: ${track.sourceUrl}`);
-    await $`rm -rf "${destDir}"`.quiet();
+    // Keep the folder so the script doesn't retry on next run
     return;
   }
 

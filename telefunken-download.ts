@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync } from "fs";
-import { join, extname, basename } from "path";
+import { existsSync, mkdirSync, readFileSync } from "fs";
+import { join, extname, basename, dirname } from "path";
 import { $ } from "bun";
 
 const destDir = process.argv[2];
@@ -26,6 +26,17 @@ interface Track {
 
 const CACHE_FILE = "/tmp/telefunken-tracks-cache.json";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Load ignored URLs from ignore.txt (next to this script)
+const SCRIPT_DIR = dirname(Bun.main);
+const IGNORE_FILE = join(SCRIPT_DIR, "ignore.txt");
+const IGNORED_URLS = new Set<string>(
+  existsSync(IGNORE_FILE)
+    ? readFileSync(IGNORE_FILE, "utf-8").split("\n")
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith("#"))
+    : []
+);
 
 const S3_URL_REGEX = /https?:\/\/(?:season\d+multitracks|multitrackslive|multitracksstudio)\.s3(?:\.us-east-2)?\.amazonaws\.com\/[^\s"'<>)\]]+\.zip/gi;
 
@@ -100,6 +111,7 @@ function decodeHtmlEntities(str: string): string {
 }
 
 async function fetchPageUrls(url: string, seenUrls: Set<string>, tracks: Track[]): Promise<boolean> {
+  if (IGNORED_URLS.has(url)) return false;
   const html = await fetch(url).then(r => r.text()).catch(() => "");
   // Extract page title — only useful for single-track pages, not listing pages
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);

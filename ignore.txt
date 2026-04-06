@@ -1,0 +1,5 @@
+# URLs to skip during scraping (one per line, comments and blank lines are ignored)
+https://www.telefunken-elektroakustik.com/multitrack/alchemy-microphone-series-multi-track-session-files-blackbird-studios/
+https://www.telefunken-elektroakustik.com/multitrack/alchemy-microphone-series-multi-track-session-files-bedrock-la/
+https://www.telefunken-elektroakustik.com/multitrack/sarah-elizabeth-charles/
+https://www.telefunken-elektroakustik.com/multitrack/vintage-king-hosts-telefunken-mic-summit-session-aes/

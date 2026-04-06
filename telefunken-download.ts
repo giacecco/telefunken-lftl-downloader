@@ -21,6 +21,7 @@ interface Track {
   artist: string;
   track: string;
   url: string;
+  sourceUrl: string;
 }
 
 const CACHE_FILE = "/tmp/telefunken-tracks-cache.json";
@@ -101,7 +102,7 @@ async function fetchPageUrls(url: string, seenUrls: Set<string>, tracks: Track[]
     if (seenUrls.has(decoded)) continue;
     seenUrls.add(decoded);
     const parsed = parseTrackFromUrl(decoded, "");
-    if (parsed) { tracks.push({ ...parsed, url: decoded }); found++; }
+    if (parsed) { tracks.push({ ...parsed, url: decoded, sourceUrl: url }); found++; }
     else console.warn(`  [warn] could not parse: ${decoded}`);
   }
   const hasNext = html.includes('rel="next"');
@@ -283,7 +284,7 @@ async function processTrack(track: Track): Promise<void> {
   const curlResult = await $`curl -L -s -o "${tmpZip}" "${track.url}"`.nothrow();
   if (curlResult.exitCode !== 0) {
     console.error(`  [error] download failed for ${folder}`);
-    console.error(`    URL: ${track.url}`);
+    console.error(`    Found at: ${track.sourceUrl}`);
     await $`rm -rf "${destDir}"`.quiet();
     return;
   }
@@ -307,7 +308,7 @@ async function processTrack(track: Track): Promise<void> {
 
   if (unzipResult.exitCode !== 0) {
     console.error(`  [error] unzip failed for ${folder} (bad zip or dead URL)`);
-    console.error(`    URL: ${track.url}`);
+    console.error(`    Found at: ${track.sourceUrl}`);
     await $`rm -rf "${destDir}"`.quiet();
     return;
   }

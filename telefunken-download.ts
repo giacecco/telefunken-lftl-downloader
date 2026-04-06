@@ -97,13 +97,20 @@ function decodeHtmlEntities(str: string): string {
 
 async function fetchPageUrls(url: string, seenUrls: Set<string>, tracks: Track[]): Promise<boolean> {
   const html = await fetch(url).then(r => r.text()).catch(() => "");
-  // Extract page title for better track name parsing
+  // Extract page title — only useful for single-track pages, not listing pages
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const pageTitle = titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : "";
-  let found = 0;
+  const rawTitle = titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : "";
+  // Collect new URLs first to determine if this is a single-track page
+  const newUrls: string[] = [];
   for (const match of html.matchAll(S3_URL_REGEX)) {
     const decoded = decodeHtmlEntities(match[0]).split("?")[0];
     if (seenUrls.has(decoded)) continue;
+    newUrls.push(decoded);
+  }
+  // Only use the page title for single-track pages
+  const pageTitle = newUrls.length === 1 ? rawTitle : "";
+  let found = 0;
+  for (const decoded of newUrls) {
     seenUrls.add(decoded);
     const parsed = parseTrackFromUrl(decoded, pageTitle);
     if (parsed) { tracks.push({ ...parsed, url: decoded, sourceUrl: url }); found++; }

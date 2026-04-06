@@ -45,11 +45,15 @@ function parseTrackFromUrl(rawUrl: string, postTitle: string): { artist: string;
 
   // Try post title first when available — more reliable than acronym filenames
   const titleCleaned = postTitle
+    .replace(/\s*[-–]\s*Telefunken\s+Elektroakustik\s*/gi, "")
     .replace(/\s*(?:TELEFUNKEN[''s]*\s*)?(?:"?Live\s*From\s*(?:The\s*)?(?:Lab|TELEFUNKEN\s*Soundstage)"?)\s*/gi, "")
     .replace(/\s*at\s+TELEFUNKEN\s*/gi, "")
     .replace(/\s*is\s+"?Live\s*From\s*the\s*Lab"?\s*/gi, "")
     .replace(/\s*Featured\s*at\s*TELEFUNKEN\s*/gi, "")
     .replace(/\s*Records\s*with\s*TELEFUNKEN.*$/gi, "")
+    .replace(/\s*@\s+.+$/gi, "")
+    .replace(/\s*[-–]\s*Multi-?Track\s+Session\s+Files?\s*(?:\(.*?\))?\s*/gi, "")
+    .replace(/\s*[-–]\s*(?:Microphone\s+)?Comparison\s*/gi, "")
     .replace(/TF\d+\s*Multitrack\s*(?:Audio\s*)?Files?:\s*/gi, "")
     .replace(/&#8220;|&#8221;|[\u201C\u201D]/g, '"')
     .trim();

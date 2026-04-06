@@ -269,7 +269,6 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
   const roughMasterGlob = new Bun.Glob("rough master.*");
   const existing = [...roughMasterGlob.scanSync({ cwd: destDir })];
   if (existing.length > 0) {
-    console.log(`    [skip] rough master already exists`);
     return;
   }
 
@@ -379,20 +378,30 @@ const existingNormalized = new Map(
 // Deduplicate tracks by normalized folder name (exact and fuzzy)
 const seenNormalized = new Set<string>();
 const uniqueTracks: Track[] = [];
+const matchedTracks: { track: Track; existingFolder: string }[] = [];
 for (const track of tracks) {
   const norm = normalizeForComparison(folderName(track.artist, track.track));
-  const match = findMatchingFolder(norm, existingNormalized);
-  if (match || seenNormalized.has(norm)) continue;
+  if (seenNormalized.has(norm)) continue;
   seenNormalized.add(norm);
-  uniqueTracks.push(track);
+  const match = findMatchingFolder(norm, existingNormalized);
+  if (match) {
+    matchedTracks.push({ track, existingFolder: existingNormalized.get(match)! });
+  } else {
+    uniqueTracks.push(track);
+  }
 }
 
-const skipped = tracks.length - uniqueTracks.length;
-if (skipped > 0) console.log(`[dedup] skipped ${skipped} tracks already present (by normalized or fuzzy name)`);
+if (matchedTracks.length > 0) console.log(`[dedup] ${matchedTracks.length} tracks already present`);
 
-// Process sequentially to avoid hammering the server
+// Process new tracks sequentially to avoid hammering the server
 for (const track of uniqueTracks) {
   await processTrack(track);
+}
+
+// Check for missing rough masters in existing folders
+for (const { track, existingFolder } of matchedTracks) {
+  const existingDir = join(BASE_DIR, existingFolder);
+  await downloadRoughMaster(track.artist, track.track, existingDir);
 }
 
 console.log("\nAll done!");

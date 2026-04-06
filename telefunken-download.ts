@@ -291,7 +291,7 @@ async function processTrack(track: Track): Promise<void> {
   if (curlResult.exitCode !== 0) {
     console.error(`  [error] download failed for ${folder}`);
     console.error(`    Found at: ${track.sourceUrl}`);
-    await $`rm "${tmpZip}"`.quiet();
+    await $`rm "${tmpZip}"`.quiet().nothrow();
     // Keep the folder so the script doesn't retry a broken URL on next run
     return;
   }

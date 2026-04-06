@@ -283,6 +283,7 @@ async function processTrack(track: Track): Promise<void> {
   const curlResult = await $`curl -L -s -o "${tmpZip}" "${track.url}"`.nothrow();
   if (curlResult.exitCode !== 0) {
     console.error(`  [error] download failed for ${folder}`);
+    console.error(`    URL: ${track.url}`);
     await $`rm -rf "${destDir}"`.quiet();
     return;
   }
@@ -306,6 +307,7 @@ async function processTrack(track: Track): Promise<void> {
 
   if (unzipResult.exitCode !== 0) {
     console.error(`  [error] unzip failed for ${folder} (bad zip or dead URL)`);
+    console.error(`    URL: ${track.url}`);
     await $`rm -rf "${destDir}"`.quiet();
     return;
   }

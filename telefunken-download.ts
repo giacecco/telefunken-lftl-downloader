@@ -43,25 +43,7 @@ function parseTrackFromUrl(rawUrl: string, postTitle: string): { artist: string;
     .replace(/^\d+\.\s*\+?\s*/, "") // numbered prefix e.g. "01. "
     .trim();
 
-  // Pattern: Artist "Track"
-  const quotedMatch = filename.match(/^(.+?)\s+"([^"]+)"\s*$/);
-  if (quotedMatch) return { artist: quotedMatch[1].trim(), track: quotedMatch[2].trim() };
-
-  // Pattern: Artist - Track
-  const dashMatch = filename.match(/^(.+?)\s+-\s+(.+)$/);
-  if (dashMatch) return { artist: dashMatch[1].trim(), track: dashMatch[2].trim() };
-
-  // Pattern: Artist_Track (underscore, no spaces around it)
-  const underscoreIdx = filename.indexOf("_");
-  if (underscoreIdx > 0 && !filename.slice(0, underscoreIdx).includes(" ")) {
-    return { artist: filename.slice(0, underscoreIdx).trim(), track: filename.slice(underscoreIdx + 1).trim() };
-  }
-  // Pattern: Artist_Track (underscore used even with spaces in names)
-  if (underscoreIdx > 0) {
-    return { artist: filename.slice(0, underscoreIdx).trim(), track: filename.slice(underscoreIdx + 1).trim() };
-  }
-
-  // Fallback: use post title — strip noise and look for quoted track
+  // Try post title first when available — more reliable than acronym filenames
   const titleCleaned = postTitle
     .replace(/\s*(?:TELEFUNKEN[''s]*\s*)?(?:"?Live\s*From\s*(?:The\s*)?(?:Lab|TELEFUNKEN\s*Soundstage)"?)\s*/gi, "")
     .replace(/\s*at\s+TELEFUNKEN\s*/gi, "")
@@ -77,6 +59,25 @@ function parseTrackFromUrl(rawUrl: string, postTitle: string): { artist: string;
     const track = titleQuoteMatch[1];
     const artist = titleCleaned.replace(/"[^"]*"/, "").replace(/[&,\s]+$/, "").trim();
     if (artist && track) return { artist, track };
+  }
+
+  // Title has "Artist - Track" or "Artist – Track" pattern
+  const titleDashMatch = titleCleaned.match(/^(.+?)\s*[-–]\s+(.+)$/);
+  if (titleDashMatch) return { artist: titleDashMatch[1].trim(), track: titleDashMatch[2].trim() };
+
+  // Fall back to parsing the zip filename
+  // Pattern: Artist "Track"
+  const quotedMatch = filename.match(/^(.+?)\s+"([^"]+)"\s*$/);
+  if (quotedMatch) return { artist: quotedMatch[1].trim(), track: quotedMatch[2].trim() };
+
+  // Pattern: Artist - Track
+  const dashMatch = filename.match(/^(.+?)\s+-\s+(.+)$/);
+  if (dashMatch) return { artist: dashMatch[1].trim(), track: dashMatch[2].trim() };
+
+  // Pattern: Artist_Track
+  const underscoreIdx = filename.indexOf("_");
+  if (underscoreIdx > 0) {
+    return { artist: filename.slice(0, underscoreIdx).trim(), track: filename.slice(underscoreIdx + 1).trim() };
   }
 
   // Last resort: whole cleaned title as artist, filename as track
@@ -96,12 +97,15 @@ function decodeHtmlEntities(str: string): string {
 
 async function fetchPageUrls(url: string, seenUrls: Set<string>, tracks: Track[]): Promise<boolean> {
   const html = await fetch(url).then(r => r.text()).catch(() => "");
+  // Extract page title for better track name parsing
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const pageTitle = titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : "";
   let found = 0;
   for (const match of html.matchAll(S3_URL_REGEX)) {
     const decoded = decodeHtmlEntities(match[0]).split("?")[0];
     if (seenUrls.has(decoded)) continue;
     seenUrls.add(decoded);
-    const parsed = parseTrackFromUrl(decoded, "");
+    const parsed = parseTrackFromUrl(decoded, pageTitle);
     if (parsed) { tracks.push({ ...parsed, url: decoded, sourceUrl: url }); found++; }
     else console.warn(`  [warn] could not parse: ${decoded}`);
   }

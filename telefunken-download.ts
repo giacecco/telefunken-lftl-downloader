@@ -3,9 +3,10 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { join, extname, basename, dirname } from "path";
 import { $ } from "bun";
 
+const SILENT = process.argv.includes("--silent");
 const destDir = process.argv[2];
 if (!destDir) {
-  console.error("Usage: bun telefunken-download.ts <destination-directory>");
+  console.error("Usage: bun telefunken-download.ts <destination-directory> [--silent]");
   process.exit(1);
 }
 if (!existsSync(destDir)) {
@@ -13,6 +14,14 @@ if (!existsSync(destDir)) {
   process.exit(1);
 }
 const BASE_DIR = destDir;
+
+function log(...args: any[]): void {
+  if (!SILENT) console.log(...args);
+}
+
+function warn(...args: any[]): void {
+  if (!SILENT) console.warn(...args);
+}
 
 // Audio file extensions to convert to FLAC
 const AUDIO_EXTENSIONS = new Set([".wav", ".aiff", ".aif", ".mp3", ".ogg", ".flac"]);
@@ -131,10 +140,10 @@ async function fetchPageUrls(url: string, seenUrls: Set<string>, tracks: Track[]
     seenUrls.add(decoded);
     const parsed = parseTrackFromUrl(decoded, pageTitle);
     if (parsed) { tracks.push({ ...parsed, url: decoded, sourceUrl: url }); found++; }
-    else console.warn(`  [warn] could not parse: ${decoded}`);
+    else warn(`  [warn] could not parse: ${decoded}`);
   }
   const hasNext = html.includes('rel="next"');
-  if (found) console.log(`  [scrape] ${url} → ${found} new URLs`);
+  if (found) log(`  [scrape] ${url} → ${found} new URLs`);
   return hasNext;
 }
 
@@ -144,12 +153,12 @@ async function scrapeTrackList(): Promise<Track[]> {
     const cache = JSON.parse(await Bun.file(CACHE_FILE).text());
     if (Date.now() - cache.ts < CACHE_TTL_MS) {
       const filtered = cache.tracks.filter((t: Track) => !IGNORED_URLS.has(t.sourceUrl));
-      console.log(`[scrape] using cached track list (${filtered.length} tracks, expires in ${Math.round((CACHE_TTL_MS - (Date.now() - cache.ts)) / 3600000)}h)`);
+      log(`[scrape] using cached track list (${filtered.length} tracks, expires in ${Math.round((CACHE_TTL_MS - (Date.now() - cache.ts)) / 3600000)}h)`);
       return filtered;
     }
   }
 
-  console.log("[scrape] fetching track list…");
+  log("[scrape] fetching track list…");
   const tracks: Track[] = [];
   const seenUrls = new Set<string>();
 
@@ -187,7 +196,7 @@ async function scrapeTrackList(): Promise<Track[]> {
     page++;
   }
 
-  console.log(`[scrape] found ${tracks.length} downloadable tracks total`);
+  log(`[scrape] found ${tracks.length} downloadable tracks total`);
   await Bun.write(CACHE_FILE, JSON.stringify({ ts: Date.now(), tracks }, null, 2));
   return tracks;
 }
@@ -251,11 +260,11 @@ async function convertToFlac(dir: string): Promise<void> {
 
     const flacPath = file.slice(0, -ext.length) + ".flac";
     if (existsSync(flacPath)) {
-      console.log(`    [skip] already flac: ${basename(flacPath)}`);
+      log(`    [skip] already flac: ${basename(flacPath)}`);
       continue;
     }
 
-    console.log(`    [convert] ${basename(file)} → flac`);
+    log(`    [convert] ${basename(file)} → flac`);
     const result = await $`sox "${file}" "${flacPath}"`.quiet().nothrow();
     if (result.exitCode === 0) {
       await $`rm "${file}"`.quiet();
@@ -273,7 +282,7 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
   }
 
   const query = `${artist} ${track} Live From The Lab TELEFUNKEN`;
-  console.log(`  [video] searching: ${query}`);
+  log(`  [video] searching: ${query}`);
 
   const outTemplate = destDir + "/rough master.%(ext)s";
   const result = await $`yt-dlp https://www.youtube.com/@LiveFromTheLab/videos --match-title ${artist} --max-downloads 1 -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
@@ -281,17 +290,17 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
   if (result.exitCode !== 0 && result.exitCode !== 101) {
     // 101 = max-downloads reached after match, still success
     // Try fallback: yt-dlp search
-    console.log(`    [video] channel search failed, trying yt-dlp search…`);
+    log(`    [video] channel search failed, trying yt-dlp search…`);
     const searchUrl = "ytsearch1:" + query;
     const fallback = await $`yt-dlp ${searchUrl} -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
 
     if (fallback.exitCode !== 0) {
       console.error(`    [error] could not find video for ${artist} - ${track}`);
     } else {
-      console.log(`    [video] rough master downloaded (via search)`);
+      log(`    [video] rough master downloaded (via search)`);
     }
   } else {
-    console.log(`    [video] rough master downloaded`);
+    log(`    [video] rough master downloaded`);
   }
 }
 
@@ -303,14 +312,14 @@ async function processTrack(track: Track): Promise<void> {
     const flacGlob = new Bun.Glob("*.flac");
     const hasStems = [...flacGlob.scanSync({ cwd: destDir })].length > 0;
     if (!hasStems) {
-      console.warn(`[warn] ${folder} exists but has no stems — download may have failed previously`);
-      console.warn(`  Found at: ${track.sourceUrl}`);
+      warn(`[warn] ${folder} exists but has no stems — download may have failed previously`);
+      warn(`  Found at: ${track.sourceUrl}`);
     }
     await downloadRoughMaster(track.artist, track.track, destDir);
     return;
   }
 
-  console.log(`[download] ${folder}`);
+  log(`[download] ${folder}`);
   mkdirSync(destDir, { recursive: true });
 
   const tmpZip = join(destDir, "_download.zip");
@@ -333,7 +342,7 @@ async function processTrack(track: Track): Promise<void> {
     return;
   }
 
-  console.log(`  [unzip] ${folder}`);
+  log(`  [unzip] ${folder}`);
   const unzipResult = await $`unzip -q -o "${tmpZip}" -d "${destDir}"`.nothrow();
   await $`rm "${tmpZip}"`.quiet();
   // Remove Mac junk
@@ -357,13 +366,13 @@ async function processTrack(track: Track): Promise<void> {
     return;
   }
 
-  console.log(`  [convert] converting audio to flac in ${folder}`);
+  log(`  [convert] converting audio to flac in ${folder}`);
   await convertToFlac(destDir);
 
   await downloadRoughMaster(track.artist, track.track, destDir);
 
 
-  console.log(`  [done] ${folder}`);
+  log(`  [done] ${folder}`);
 }
 
 const tracks = await scrapeTrackList();
@@ -391,7 +400,7 @@ for (const track of tracks) {
   }
 }
 
-if (matchedTracks.length > 0) console.log(`[dedup] ${matchedTracks.length} tracks already present`);
+if (matchedTracks.length > 0) log(`[dedup] ${matchedTracks.length} tracks already present`);
 
 // Process new tracks sequentially to avoid hammering the server
 for (const track of uniqueTracks) {
@@ -404,4 +413,4 @@ for (const { track, existingFolder } of matchedTracks) {
   await downloadRoughMaster(track.artist, track.track, existingDir);
 }
 
-console.log("\nAll done!");
+log("\nAll done!");

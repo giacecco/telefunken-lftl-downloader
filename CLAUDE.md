@@ -32,10 +32,14 @@ brew install sox yt-dlp
 ## Running
 
 ```bash
-bun telefunken-download.ts /path/to/destination
+bun telefunken-download.ts [/path/to/destination] [--silent]
 ```
 
 The destination directory must exist and be writable. The script will create `Artist - Track` subdirectories within it.
+
+### Options
+
+- `--silent`: Suppress all non-error output (`log()` and `warn()` calls). Only `console.error()` messages are shown. Useful for cron jobs where you only want email notifications on failure.
 
 ## Key Technical Notes
 

@@ -21,10 +21,44 @@ Scripts for downloading the free multitracks library from [Telefunken Elektroaku
 Download all new tracks (stems + rough masters):
 
 ```bash
-bun telefunken-download.ts /path/to/destination
+bun telefunken-download.ts [/path/to/destination]
 ```
 
 The destination directory must exist. Track folders will be created within it.
+
+### Options
+
+- `--silent`: Suppress all non-error output. Only `console.error()` messages are shown. Useful for cron jobs where you only want email notifications on failure.
+
+```bash
+bun telefunken-download.ts [/path/to/destination] --silent
+```
+
+## Running via Cron
+
+To run automatically every night at 2am (with random 0-4 hour delay to avoid predictable load):
+
+**1. Create a wrapper script** (`~/bin/telefunken-cron-wrapper.sh`):
+
+```bash
+#!/bin/bash
+DELAY=$((RANDOM % 14400))
+sleep $DELAY
+flock -n /tmp/telefunken.lock /path/to/bun /path/to/telefunken-download.ts [/path/to/destination] --silent
+```
+
+**2. Add to crontab:**
+
+```bash
+crontab -e
+```
+
+```bash
+MAILTO=[your-email@example.com]
+0 2 * * * ~/bin/telefunken-cron-wrapper.sh
+```
+
+The `--silent` flag ensures you only receive emails when errors occur. The `flock` command prevents multiple instances from running simultaneously.
 
 ## What it does
 

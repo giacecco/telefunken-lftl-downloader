@@ -369,8 +369,9 @@ async function processTrack(track: Track): Promise<void> {
   log(`  [convert] converting audio to flac in ${folder}`);
   await convertToFlac(destDir);
 
-  await downloadRoughMaster(track.artist, track.track, destDir);
+  await Bun.write(join(destDir, ".telefunken"), track.url);
 
+  await downloadRoughMaster(track.artist, track.track, destDir);
 
   log(`  [done] ${folder}`);
 }
@@ -384,7 +385,17 @@ const existingNormalized = new Map(
   existingEntries.map(entry => [normalizeForComparison(entry), entry])
 );
 
-// Deduplicate tracks by normalized folder name (exact and fuzzy)
+// Build URL → folder map from .telefunken metadata files (handles renamed folders)
+const urlToFolder = new Map<string, string>();
+for (const entry of existingEntries) {
+  const metaFile = join(BASE_DIR, entry, ".telefunken");
+  if (existsSync(metaFile)) {
+    const url = (await Bun.file(metaFile).text()).trim();
+    if (url) urlToFolder.set(url, entry);
+  }
+}
+
+// Deduplicate tracks by URL (renamed folders) or normalized folder name (fuzzy match)
 const seenNormalized = new Set<string>();
 const uniqueTracks: Track[] = [];
 const matchedTracks: { track: Track; existingFolder: string }[] = [];
@@ -392,9 +403,20 @@ for (const track of tracks) {
   const norm = normalizeForComparison(folderName(track.artist, track.track));
   if (seenNormalized.has(norm)) continue;
   seenNormalized.add(norm);
+
+  // URL match takes priority — works even if the folder has been renamed
+  if (urlToFolder.has(track.url)) {
+    matchedTracks.push({ track, existingFolder: urlToFolder.get(track.url)! });
+    continue;
+  }
+
   const match = findMatchingFolder(norm, existingNormalized);
   if (match) {
-    matchedTracks.push({ track, existingFolder: existingNormalized.get(match)! });
+    const existingFolder = existingNormalized.get(match)!;
+    // Backfill .telefunken so future renames are handled without re-downloading
+    const metaFile = join(BASE_DIR, existingFolder, ".telefunken");
+    if (!existsSync(metaFile)) await Bun.write(metaFile, track.url);
+    matchedTracks.push({ track, existingFolder });
   } else {
     uniqueTracks.push(track);
   }

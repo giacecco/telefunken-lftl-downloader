@@ -284,8 +284,11 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
   const query = `${artist} ${track} Live From The Lab TELEFUNKEN`;
   log(`  [video] searching: ${query}`);
 
+  // Strip special chars so the track name works as a yt-dlp regex
+  const trackForMatch = track.replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+
   const outTemplate = destDir + "/rough master.%(ext)s";
-  await $`yt-dlp https://www.youtube.com/@LiveFromTheLab/videos --match-title ${artist} --max-downloads 1 -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
+  await $`yt-dlp https://www.youtube.com/@LiveFromTheLab/videos --match-title ${trackForMatch} --max-downloads 1 -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
 
   const downloaded = [...roughMasterGlob.scanSync({ cwd: destDir })];
   if (downloaded.length > 0) {
@@ -293,9 +296,9 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
     return;
   }
 
-  // File not written — try fallback search
+  // File not written — try fallback search; include artist to avoid generic track name collisions
   log(`    [video] channel search found nothing, trying yt-dlp search…`);
-  const searchUrl = "ytsearch1:" + query;
+  const searchUrl = `ytsearch1:${artist} ${trackForMatch} Live From The Lab TELEFUNKEN`;
   await $`yt-dlp ${searchUrl} -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
 
   const downloadedViaSearch = [...roughMasterGlob.scanSync({ cwd: destDir })];

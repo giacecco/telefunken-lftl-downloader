@@ -170,6 +170,12 @@ for (const track of tracks) {
 
   if (!matchedEntry) { unmatched++; continue; }
 
+  // Skip folders with no audio — they represent failed downloads, not completed ones
+  const audioExtensions = new Set([".wav", ".aiff", ".aif", ".mp3", ".ogg", ".flac", ".m4a"]);
+  const folderFiles = readdirSync(join(BASE_DIR, matchedEntry));
+  const hasAudio = folderFiles.some(f => audioExtensions.has(f.slice(f.lastIndexOf(".")).toLowerCase()));
+  if (!hasAudio) { console.log(`[skip] no audio in ${matchedEntry}`); continue; }
+
   const metaFile = join(BASE_DIR, matchedEntry, ".telefunken");
   if (!existsSync(metaFile)) {
     await Bun.write(metaFile, track.url);

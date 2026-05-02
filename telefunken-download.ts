@@ -429,9 +429,15 @@ for (const track of uniqueTracks) {
   await processTrack(track);
 }
 
-// Check for missing rough masters in existing folders
+// Check for missing rough masters in existing folders (only if stems are present)
 for (const { track, existingFolder } of matchedTracks) {
   const existingDir = join(BASE_DIR, existingFolder);
+  const flacGlob = new Bun.Glob("*.flac");
+  const hasStems = [...flacGlob.scanSync({ cwd: existingDir })].length > 0;
+  if (!hasStems) {
+    warn(`[warn] ${existingFolder} has no stems — skipping rough master`);
+    continue;
+  }
   await downloadRoughMaster(track.artist, track.track, existingDir);
 }
 

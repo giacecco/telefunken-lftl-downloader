@@ -284,8 +284,13 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
   const query = `${artist} ${track} Live From The Lab TELEFUNKEN`;
   log(`  [video] searching: ${query}`);
 
-  // Strip special chars so the track name works as a yt-dlp regex
-  const trackForMatch = track.replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  // Build a fuzzy yt-dlp regex from the track name: strip special chars, join words with .*
+  const trackForMatch = track
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(".*");
 
   const outTemplate = destDir + "/rough master.%(ext)s";
   await $`yt-dlp https://www.youtube.com/@LiveFromTheLab/videos --match-title ${trackForMatch} --max-downloads 1 -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();

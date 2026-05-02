@@ -285,22 +285,24 @@ async function downloadRoughMaster(artist: string, track: string, destDir: strin
   log(`  [video] searching: ${query}`);
 
   const outTemplate = destDir + "/rough master.%(ext)s";
-  const result = await $`yt-dlp https://www.youtube.com/@LiveFromTheLab/videos --match-title ${artist} --max-downloads 1 -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
+  await $`yt-dlp https://www.youtube.com/@LiveFromTheLab/videos --match-title ${artist} --max-downloads 1 -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
 
-  if (result.exitCode !== 0 && result.exitCode !== 101) {
-    // 101 = max-downloads reached after match, still success
-    // Try fallback: yt-dlp search
-    log(`    [video] channel search failed, trying yt-dlp search…`);
-    const searchUrl = "ytsearch1:" + query;
-    const fallback = await $`yt-dlp ${searchUrl} -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
-
-    if (fallback.exitCode !== 0) {
-      console.error(`    [error] could not find video for ${artist} - ${track}`);
-    } else {
-      log(`    [video] rough master downloaded (via search)`);
-    }
-  } else {
+  const downloaded = [...roughMasterGlob.scanSync({ cwd: destDir })];
+  if (downloaded.length > 0) {
     log(`    [video] rough master downloaded`);
+    return;
+  }
+
+  // File not written — try fallback search
+  log(`    [video] channel search found nothing, trying yt-dlp search…`);
+  const searchUrl = "ytsearch1:" + query;
+  await $`yt-dlp ${searchUrl} -f 140 -o ${outTemplate} --no-playlist --quiet --no-warnings --sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M`.nothrow();
+
+  const downloadedViaSearch = [...roughMasterGlob.scanSync({ cwd: destDir })];
+  if (downloadedViaSearch.length > 0) {
+    log(`    [video] rough master downloaded (via search)`);
+  } else {
+    console.error(`    [error] could not find video for ${artist} - ${track}`);
   }
 }
 

@@ -49,3 +49,38 @@ The destination directory must exist and be writable. The script will create `Ar
 - **Rough masters**: YouTube format `140` = m4a AAC audio-only stream (~128 kbps). Primary strategy: `@LiveFromTheLab/videos` channel with `--match-title <artist>`. Fallback: `ytsearch1:<artist> <track> Live From The Lab TELEFUNKEN`.
 - **yt-dlp rate limiting**: `--sleep-interval 5 --max-sleep-interval 15 --limit-rate 2M` avoids YouTube throttling.
 - **Season discovery**: iterates season numbers until a season past 9 returns no URLs, to handle future seasons automatically.
+
+## Production Deployment (ubuntu1)
+
+Runs nightly on `ubuntu1` (Ubuntu, local network) via crontab:
+
+```
+MAILTO=giacecco@giacecco.com
+0 20 * * * flock -n /tmp/telefunken.lock /home/giacecco/.bin/telefunken-cron-wrapper
+```
+
+### Wrapper script (`/home/giacecco/.bin/telefunken-cron-wrapper`)
+
+Sleeps a random 0-4 hour delay, then runs the download script with the production destination:
+
+```
+/home/giacecco/.bun/bin/bun /home/giacecco/.bin/telefunken-lftl-downloader/telefunken-download.ts /mnt/iguanodon/music/multitracks/Telefunken\ Elektroakustik/ --silent
+```
+
+Key points:
+- `flock` is only in the crontab line — do NOT put `flock` in the wrapper too (double-locking breaks it).
+- `bun` path must be absolute (`/home/giacecco/.bun/bin/bun`) because cron has a minimal `$PATH`.
+- `--silent` so `MAILTO` only triggers on `stderr` output (errors).
+- `MAILTO` sends cron output/errors to giacecco@giacecco.com.
+- The repo is cloned to `/home/giacecco/.bin/telefunken-lftl-downloader/`.
+
+### Redeploy
+
+The `redeploy` script (in this repo) does a fresh clone on ubuntu1:
+
+```bash
+#!/bin/bash
+cd .. && rm -rf telefunken-lftl-downloader && gh repo clone giacecco/telefunken-lftl-downloader && cd telefunken-lftl-downloader
+```
+
+Run from the repo directory on ubuntu1. Requires `gh` CLI to be authenticated.
